@@ -1,25 +1,117 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Peer Assessment 1
+========================================================
 
+First of all the data is loaded from the activity.zip file, it consist with 17568 rows and 3 columns with information about the steps, and the corresponding date and interval when the measures were taken.
 
-## Loading and preprocessing the data
-
-
+```{r Load data}
+datafile <- read.csv(unzip("activity.zip"))
+dim(datafile) #17568     3
+```
 
 ## What is mean total number of steps taken per day?
 
+Build a table with the total number of steps taken per day.
+```{r Steps per day 1}
+stepsXday <- aggregate(. ~ date, data = datafile[,c(1,2)], sum, na.action=NULL)
+stepsXday
+```
 
+Histogram of the total number of steps taken per day.
+```{r Steps per day 2}
+hist(stepsXday$steps, breaks= 6, main="Hitogram with the steps per day", xlab="Steps", col= "lightgreen")
+```
+
+The mean and the median of the total number of steps taken per day is shown. The mean is 10766.19 and the median is 10765.
+```{r Steps per day 3}
+meanXday <- mean(stepsXday$steps, na.rm = TRUE) 
+meanXday
+medianXday <- median(stepsXday$steps, na.rm = TRUE)
+medianXday
+```
 
 ## What is the average daily activity pattern?
 
+A data.frame with the mean of the number of steps taken in each interval of time is built. The plot shows the mean of the steps (y axes) and the interval (x axes).
+```{r Steps per interval}
+stepsXint <- aggregate(. ~ interval, data = datafile[,c(1,3)], mean)
+str(stepsXint)
+plot(stepsXint$interval,stepsXint$steps, type = "l", xlab="Interval", ylab="Number of steps mean")
+```
 
+With the value of 206.1698, the interval with the maximum mean of the number of steps is the 835. 
+```{r max steps per interval}
+stepsXint[stepsXint$steps == max(stepsXint$steps), "interval"]
+```
 
 ## Imputing missing values
 
+There are 2304 entries with NA values.
 
+```{r number of nas}
+sum(is.na(datafile$steps)) 
+```
+
+In order to solve this problem, missing values are replaced by the mean of steps in the same interval.
+
+```{r na replaced}
+#Detect the days with NA values
+NAdays <- stepsXday[is.na(stepsXday$steps), "date"]
+#Delete the entries with NA from the original data.frame
+dataWOna <- datafile[!is.na(datafile$steps),]
+#Make a loop in order to add those dates with missing values with the interval mean
+for (day in NAdays) {
+        steps <- stepsXint$steps
+        date <- rep(day, 288)
+        interval <- stepsXint$interval
+        newdate <- data.frame(steps, date, interval)
+        dataWOna <- rbind(dataWOna, newdate)
+}
+dataWOna <- dataWOna[order(dataWOna$date),]
+```
+
+The histogram with the total number of steps, the mean and the median are made again in order to find the diferences when replacing the NA. No significative diference is shown in the histogram. The mean has not changed and continue being 10766.19. However the median do change to be the same value of the mean.
+
+```{r hist mean and median}
+NAstepsXday <- aggregate(. ~ date, data = dataWOna[,c(1,2)], sum, na.action=NULL)
+NAstepsXday
+
+hist(NAstepsXday$steps, breaks= 6, main="Steps per day WO NAs", xlab="Steps", col= "lightgreen")
+
+NAmeanXday <- mean(NAstepsXday$steps, na.rm = TRUE) 
+NAmeanXday
+NAmedianXday <- median(NAstepsXday$steps, na.rm = TRUE)
+NAmedianXday
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+The days of the week are identifyied among the dates and the number of steps is divided depending on: "weekday" or "weekend"
+
+```{r new week variable}
+weekdays <- weekdays(as.Date(dataWOna$date))
+list1 <- unique(weekdays)
+list2 <- c(rep("weekday", 4), rep("weekend", 2), "weekday")
+map = setNames(list2, list1)
+weekID <- map[weekdays]
+weektable <- cbind(dataWOna, weekID=as.factor(weekID))
+weekdayTabl <- weektable[weekID=="weekday",]
+weekendTabl <- weektable[weekID=="weekend",]
+```
+
+Results of the mean of the steps per interval in weekdays are shown below in a plot:
+```{r stepsxinterval in weekdays}
+stepsXintWD <- aggregate(. ~ interval, data = weekdayTabl[,c(1,3)], mean)
+dim(stepsXintWD) #288   2
+plot(stepsXintWD$interval,stepsXintWD$steps, type = "l", xlab="Interval", ylab="Average of steps in weekdays")
+```
+
+Results of the mean of the steps per interval in weekend are shown below in a plot:
+```{r stepsxinterval in weekends}
+stepsXintWN <- aggregate(. ~ interval, data = weekendTabl[,c(1,3)], mean)
+dim(stepsXintWN) #288   2
+plot(stepsXintWN$interval,stepsXintWN$steps, type = "l", xlab="Interval", ylab="Average of steps in weekend")
+```
+
+It looks like in the weekends a higher number of steps are reported in the late intervals. Moreover, the increase of the steps takes place in earlier intervals during the weekdays.
+
+.........
